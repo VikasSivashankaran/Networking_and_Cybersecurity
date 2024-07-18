@@ -1,89 +1,65 @@
-def generate_key_square(key):
-    # Create a 5x5 key square
-    key_square = [['' for _ in range(5)] for _ in range(5)]
-    used_chars = set()
+def playfair_cipher(plaintext, key, mode):
+    # Define the alphabet, excluding 'j'
+    alphabet = 'abcdefghiklmnopqrstuvwxyz'
+    # Remove whitespace and 'j' from the key and convert to lowercase
+    key = key.lower().replace(' ', '').replace('j', 'i')
 
-    # Remove duplicates from the key and add the characters to the key square
-    i = 0
-    j = 0
-    for char in key:
-        if char not in used_chars and char != 'J':  # 'I' and 'J' are considered the same
-            key_square[i][j] = char
-            used_chars.add(char)
-            j += 1
-            if j == 5:
-                i += 1
-                j = 0
+    # Construct the key square
+    key_square = ''
+    for letter in key + alphabet:
+        if letter not in key_square:
+            key_square += letter
 
-    # Fill the remaining cells with the rest of the alphabet
-    for char in 'ABCDEFGHIKLMNOPQRSTUVWXYZ':  # 'J' is excluded
-        if char not in used_chars:
-            key_square[i][j] = char
-            used_chars.add(char)
-            j += 1
-            if j == 5:
-                i += 1
-                j = 0
+    # Split the plaintext into digraphs, padding with 'x' if necessary
+    plaintext = plaintext.lower().replace(' ', '').replace('j', 'i')
+    if len(plaintext) % 2 == 1:
+        plaintext += 'x'
+    digraphs = [plaintext[i:i+2] for i in range(0, len(plaintext), 2)]
 
-    return key_square
-
-def preprocess_message(message):
-    # Remove spaces and convert to uppercase
-    message = message.replace(' ', '').upper()
-    message = message.replace('J', 'I')  # 'I' and 'J' are considered the same
-
-    # Insert 'X' between repeated letters and at the end if the length is odd
-    processed_message = ''
-    i = 0
-    while i < len(message):
-        processed_message += message[i]
-        if i + 1 < len(message) and message[i] == message[i + 1]:
-            processed_message += 'X'
+    # Define the encryption/decryption functions
+    def encrypt(digraph):
+        a, b = digraph
+        row_a, col_a = divmod(key_square.index(a), 5)
+        row_b, col_b = divmod(key_square.index(b), 5)
+        if row_a == row_b:
+            col_a = (col_a + 1) % 5
+            col_b = (col_b + 1) % 5
+        elif col_a == col_b:
+            row_a = (row_a + 1) % 5
+            row_b = (row_b + 1) % 5
         else:
-            i += 1
-        i += 1
-    if len(processed_message) % 2 != 0:
-        processed_message += 'X'
+            col_a, col_b = col_b, col_a
+        return key_square[row_a * 5 + col_a] + key_square[row_b * 5 + col_b]
 
-    return processed_message
+    def decrypt(digraph):
+        a, b = digraph
+        row_a, col_a = divmod(key_square.index(a), 5)
+        row_b, col_b = divmod(key_square.index(b), 5)
+        if row_a == row_b:
+            col_a = (col_a - 1) % 5
+            col_b = (col_b - 1) % 5
+        elif col_a == col_b:
+            row_a = (row_a - 1) % 5
+            row_b = (row_b - 1) % 5
+        else:
+            col_a, col_b = col_b, col_a
+        return key_square[row_a * 5 + col_a] + key_square[row_b * 5 + col_b]
 
-def find_position(char, key_square):
-    for i, row in enumerate(key_square):
-        for j, cell in enumerate(row):
-            if cell == char:
-                return i, j
-    return None
+    # Encrypt or decrypt the plaintext
+    result = ''
+    for digraph in digraphs:
+        if mode == 'encrypt':
+            result += encrypt(digraph)
+        elif mode == 'decrypt':
+            result += decrypt(digraph)
 
-def encrypt_pair(pair, key_square):
-    row1, col1 = find_position(pair[0], key_square)
-    row2, col2 = find_position(pair[1], key_square)
-
-    if row1 == row2:
-        # Same row: shift columns to the right
-        return key_square[row1][(col1 + 1) % 5] + key_square[row2][(col2 + 1) % 5]
-    elif col1 == col2:
-        # Same column: shift rows down
-        return key_square[(row1 + 1) % 5][col1] + key_square[(row2 + 1) % 5][col2]
-    else:
-        # Rectangle: swap columns
-        return key_square[row1][col2] + key_square[row2][col1]
-
-def encrypt_message(message, key_square):
-    encrypted_message = ''
-    for i in range(0, len(message), 2):
-        encrypted_message += encrypt_pair(message[i:i + 2], key_square)
-    return encrypted_message
-
-def playfair_encrypt(message, key):
-    key_square = generate_key_square(key)
-    processed_message = preprocess_message(message)
-    encrypted_message = encrypt_message(processed_message, key_square)
-    return encrypted_message
+    # Return the result
+    return result
 
 # Example usage
-key = "MONARCHY"
-message = "INSTRUMENTS"
-encrypted_message = playfair_encrypt(message, key)
-print(f"Key: {key}")
-print(f"Message: {message}")
-print(f"Encrypted Message: {encrypted_message}")
+plaintext = 'She sells sea shells at the sea shore'
+key = 'example key'
+ciphertext = playfair_cipher(plaintext, key, 'encrypt')
+print(ciphertext)  # Outputs: encrypted text
+decrypted_text = playfair_cipher(ciphertext, key, 'decrypt')
+print(decrypted_text)  # Outputs: decrypted text (Note: 'x' is added as padding)
