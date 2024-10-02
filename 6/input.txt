@@ -1,0 +1,2 @@
+Hello, this is a secret message!
+This message will be encrypted and sent to the server.
